@@ -1,7 +1,10 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from logic import ChatbotLogic
 
 app = Flask(__name__)
+CORS(app)
+
 chatbot = ChatbotLogic("../credit_card_transactions.csv")
 
 
