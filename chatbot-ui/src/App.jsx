@@ -4,22 +4,31 @@ import './App.css'
 
 function App() {
   const [messages, setMessages] = useState([
-    { sender: 'bot', text: 'Hello! Please provide your first name.' },
+    { sender: 'bot', text: 'Hello! Please select an option:\n1. Know your spending\n2. Predict future spending\n3. Get spending insights' },
   ]);
 
   const [input, setInput] = useState('');
   const [userData, setUserData] = useState({});
-  const [step, setStep] = useState('first');
+  const [step, setStep] = useState('menu');
+  const [action, setAction] = useState(null);
 
   const handleSend = async () => {
     if (!input.trim()) return;
   
     const userMessage = { sender: 'user', text: input };
     const updatedUserData = { ...userData };
-  
+
     let newBotMessages = [];
-  
-    if (step === 'first') {
+
+    if (step === 'menu') {
+      if (['1', '2', '3'].includes(input.trim())) {
+        newBotMessages.push({ sender: 'bot', text: 'Great! Please provide your first name.' });
+        setAction(parseInt(input.trim()));
+        setStep('first');
+      } else {
+        newBotMessages.push({ sender: 'bot', text: 'Invalid choice. Please enter 1, 2, or 3.' });
+      }
+    } else if (step === 'first') {
       updatedUserData.first_name = input;
       newBotMessages.push({ sender: 'bot', text: 'Thanks! What is your last name?' });
       setStep('last');
@@ -29,11 +38,13 @@ function App() {
       setStep('age');
     } else if (step === 'age') {
       updatedUserData.age = input;
-      newBotMessages.push({ sender: 'bot', text: 'Thank you! Let me analyze your spending...' });
+      newBotMessages.push({ sender: 'bot', text: 'Thank you! Let me analyze your request...' });
       setStep('done');
-  
+
       try {
-        const res = await axios.post('http://localhost:5000/chat', updatedUserData);
+        const requestBody = { ...updatedUserData, action }
+        const res = await axios.post('http://localhost:5000/chat', requestBody);
+
         const data = res.data;
         let categorySpending = '';
         const displayMap = {
@@ -59,20 +70,24 @@ function App() {
           }
         }
         
-        const messageFromRes = !data.message ? `<p>Average Transaction Amount: ${data.average_transaction_amount}</p>\n
-        <p>Most Frequent Category: ${displayMap[data.most_frequent_category]}</p>\n
+        const messageFromRes = !data.message ? `Average Transaction Amount: ${data.average_transaction_amount}\n
+        Most Frequent Category: ${displayMap[data.most_frequent_category]}\n
         Transaction Count: ${data.transaction_count}\n
         Total Spending: ${data.total_spending}\n
         Spending by category\n
         ${categorySpending}
         ` : data.message;
+
         newBotMessages.push({ sender: 'bot', text: messageFromRes });
-      } catch (err) {
-        console.error(err);
-        newBotMessages.push({ sender: 'bot', text: 'Oops! Something went wrong. Try again.' });
+      } catch (error) {
+        if (error.response){
+          newBotMessages.push({ sender: 'bot', text: error.response.data?.error });
+        } else {
+          newBotMessages.push({ sender: 'bot', text: 'Oops! Something went wrong. Try again.' });
+        }
       }
     }
-  
+
     setUserData(updatedUserData);
     setMessages(prev => [...prev, userMessage, ...newBotMessages]);
     setInput('');

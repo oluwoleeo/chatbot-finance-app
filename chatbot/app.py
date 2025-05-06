@@ -16,12 +16,20 @@ def hello_world():  # put application's code here
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.json
-    first_name = data.get("first_name")
-    last_name = data.get("last_name")
-    age = data.get("age")
-    if not all([first_name, last_name, age]):
-        return jsonify({"error": "Missing fields"}), 400
-    response = chatbot.get_user_insights(first_name, last_name, age)
+    action = data.get("action")
+
+    if action == 1:
+        first_name = data.get("first_name")
+        last_name = data.get("last_name")
+        age = data.get("age")
+
+        if not all([first_name, last_name, age]):
+            return jsonify({"error": "Missing fields"}), 400
+
+        response = chatbot.get_user_insights(first_name, last_name, age)
+    else:
+        return jsonify({"error": "Invalid action"}), 400
+
     return jsonify(response)
 
 
