@@ -3,9 +3,8 @@ import axios from 'axios';
 import './App.css'
 
 function App() {
-  const [messages, setMessages] = useState([
-    { sender: 'bot', text: 'Hello! Please select an option:\n1. Know your spending\n2. Predict future spending\n3. Get spending insights' },
-  ]);
+  const firstMessage = { sender: 'bot', text: 'Please select an option:\n1. Get financial insights\n2. Predict future spending\n' }
+  const [messages, setMessages] = useState([firstMessage]);
 
   const [input, setInput] = useState('');
   const [userData, setUserData] = useState({});
@@ -39,51 +38,78 @@ function App() {
     } else if (step === 'age') {
       updatedUserData.age = input;
       newBotMessages.push({ sender: 'bot', text: 'Thank you! Let me analyze your request...' });
-      setStep('done');
+      setStep('menu');
 
       try {
         const requestBody = { ...updatedUserData, action }
         const res = await axios.post('http://localhost:5000/chat', requestBody);
 
         const data = res.data;
-        let categorySpending = '';
-        const displayMap = {
-          entertainment: 'Entertainment',
-          food_dining: 'Food Dining',
-          gas_transport: 'Gas Transport',
-          grocery_net: 'Groceries',
-          grocery_pos: 'Total Groceryies',
-          health_fitness: 'Fitness',
-          home: 'Home',
-          kids_pets: 'Kids/Pets',
-          misc_net: 'Miscellaneous',
-          misc_pos: 'Total Miscellaneous',
-          personal_care: 'Personal Care',
-          shopping_net: 'Shopping',
-          shopping_pos: 'Total Shopping',
-          travel: 'Travel'
+
+        if (action === 1) {
+          let categorySpending = '';
+          
+          const displayMap = {
+            entertainment: 'Entertainment',
+            food_dining: 'Food Dining',
+            gas_transport: 'Gas Transport',
+            grocery_net: 'Groceries',
+            grocery_pos: 'Total Groceryies',
+            health_fitness: 'Fitness',
+            home: 'Home',
+            kids_pets: 'Kids/Pets',
+            misc_net: 'Miscellaneous',
+            misc_pos: 'Total Miscellaneous',
+            personal_care: 'Personal Care',
+            shopping_net: 'Shopping',
+            shopping_pos: 'Total Shopping',
+            travel: 'Travel'
+          }
+          
+          if (data.spending_by_category){
+            for (let record of Object.entries(data.spending_by_category)){
+              categorySpending += `${displayMap[record[0]]}: ${record[1]}\n`
+            }
+          }
+          
+          const messageFromRes = !data.message ? `Average Transaction Amount: ${data.average_transaction_amount}\n
+          Most Frequent Category: ${displayMap[data.most_frequent_category]}\n
+          Transaction Count: ${data.transaction_count}\n
+          Total Spending: ${data.total_spending}\n
+          Spending by category\n
+          ${categorySpending}` : data.message;
+
+          newBotMessages.push(
+            { sender: 'bot', text: messageFromRes },
+            firstMessage
+          );
         }
 
-        if (data.spending_by_category){
-          for (let record of Object.entries(data.spending_by_category)){
-            categorySpending += `${displayMap[record[0]]}: ${record[1]}\n`
+        if (action === 2){
+          if (data.url){
+            newBotMessages.push(
+              { sender: 'bot', text: "Here's your spending forecast based on historical data." },
+              { sender: 'bot', image: `http://localhost:5000${data.url}` },
+              firstMessage
+            );
+          } else{
+            newBotMessages.push(
+              { sender: 'bot', text: data.message },
+              firstMessage
+            );
           }
         }
-        
-        const messageFromRes = !data.message ? `Average Transaction Amount: ${data.average_transaction_amount}\n
-        Most Frequent Category: ${displayMap[data.most_frequent_category]}\n
-        Transaction Count: ${data.transaction_count}\n
-        Total Spending: ${data.total_spending}\n
-        Spending by category\n
-        ${categorySpending}
-        ` : data.message;
-
-        newBotMessages.push({ sender: 'bot', text: messageFromRes });
       } catch (error) {
         if (error.response){
-          newBotMessages.push({ sender: 'bot', text: error.response.data?.error });
+          newBotMessages.push(
+            { sender: 'bot', text: error.response.data?.error },
+            firstMessage
+          );
         } else {
-          newBotMessages.push({ sender: 'bot', text: 'Oops! Something went wrong. Try again.' });
+          newBotMessages.push(
+            { sender: 'bot', text: 'Oops! Something went wrong. Try again.' },
+            firstMessage
+          );
         }
       }
     }
@@ -99,9 +125,17 @@ function App() {
         <div className="h-96 overflow-y-auto border-b mb-4 p-2 space-y-2">
           {messages.map((msg, idx) => (
             <div key={idx} className={`text-${msg.sender === 'bot' ? 'left' : 'right'}`}> 
-              <span className={`inline-block px-3 py-2 rounded-lg ${msg.sender === 'bot' ? 'bg-blue-100 text-blue-900' : 'bg-green-100 text-green-900'}`}>{msg.text}</span>
-            </div>
-          ))}
+              {msg.text && (
+                <span className={`inline-block px-3 py-2 rounded-lg ${msg.sender === 'bot' ? 'bg-blue-100 text-blue-900' : 'bg-green-100 text-green-900'}`}>{msg.text}</span>
+              )
+              }
+              {
+                msg.image && (
+                  <div className="mt-2"><img src={msg.image} alt="Forecast" className="max-w-full rounded-lg shadow" /></div>
+                  )
+              }
+                </div>
+              ))}
         </div>
         <div className="flex gap-2">
           <input
